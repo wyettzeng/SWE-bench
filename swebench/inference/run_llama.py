@@ -10,12 +10,10 @@ from datasets import load_from_disk, load_dataset
 from peft import PeftConfig, PeftModel
 from tqdm.auto import tqdm
 from transformers import (
-    LlamaTokenizer,
+    AutoTokenizer,
     StoppingCriteria,
     StoppingCriteriaList,
-)
-from swebench.inference.llamao.modeling_flash_llama import (
-    LlamaForCausalLM as AutoModelForCausalLM,
+    AutoModelForCausalLM
 )
 from swebench.inference.make_datasets.utils import extract_diff
 
@@ -125,29 +123,32 @@ def load_model(model_name_or_path, peft_path):
         "cpu": "20GIB",
     }
     logger.info(f"Using max memory {max_memory}")
-    if "-7b" in model_name_or_path:
-        device_map = DEVICE_MAPS["7b"][str(torch.cuda.device_count())]
-    elif "-13b" in model_name_or_path:
-        device_map = DEVICE_MAPS["13b"][str(torch.cuda.device_count())]
-    elif "-34b" in model_name_or_path:
-        device_map = DEVICE_MAPS["34b"][str(torch.cuda.device_count())]
-    else:
-        raise ValueError(f"No device map for {model_name_or_path}")
-    logger.info(f"Using device_map {device_map}")
+    # if "-7b" in model_name_or_path:
+    #     device_map = DEVICE_MAPS["7b"][str(torch.cuda.device_count())]
+    # elif "-13b" in model_name_or_path:
+    #     device_map = DEVICE_MAPS["13b"][str(torch.cuda.device_count())]
+    # elif "-34b" in model_name_or_path:
+    #     device_map = DEVICE_MAPS["34b"][str(torch.cuda.device_count())]
+    # else:
+    #     raise ValueError(f"No device map for {model_name_or_path}")
+    # logger.info(f"Using device_map {device_map}")
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         max_memory=max_memory,
-        device_map=device_map,
+        # device_map=device_map,
         torch_dtype=torch.bfloat16,
+        device_map="auto",
     ).eval()
     if peft_path is None:
         logger.info("No PEFT adapters to load")
         return model
     logger.info(f"Loading PEFT adapters from {peft_path}")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    logger.info(f"running on {device}")
     model = PeftModel.from_pretrained(
-        model,
+        model.to(device),
         peft_path,
-        device_map=device_map,
+        # device_map=device_map,
         torch_dtype=torch.bfloat16,
         max_memory=max_memory,
     )
@@ -156,7 +157,7 @@ def load_model(model_name_or_path, peft_path):
 
 def load_tokenizer(model_name_or_path):
     logger.info(f"Loading tokenizer {model_name_or_path}")
-    tokenizer = LlamaTokenizer.from_pretrained(model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     return tokenizer
 
 
