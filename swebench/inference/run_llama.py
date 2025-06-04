@@ -137,7 +137,7 @@ def load_model(model_name_or_path, peft_path):
         max_memory=max_memory,
         # device_map=device_map,
         torch_dtype=torch.bfloat16,
-        device_map="auto",
+        device_map="balanced",
     ).eval()
     if peft_path is None:
         logger.info("No PEFT adapters to load")
